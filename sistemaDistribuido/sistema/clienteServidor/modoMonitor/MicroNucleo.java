@@ -15,6 +15,10 @@ import sistemaDistribuido.sistema.clienteServidor.modoUsuario.ProcesoCliente;
 import sistemaDistribuido.sistema.clienteServidor.modoUsuario.ProcesoServidor;
 import sistemaDistribuido.sistema.clienteServidor.modoUsuario.ResendThread;
 import sistemaDistribuido.util.Convertidor;
+import sistemaDistribuido.util.Buzon;
+import sistemaDistribuido.util.Pausador;
+import com.sun.scenario.effect.impl.sw.sse.SSEBlend_HARD_LIGHTPeer;
+import com.sun.xml.internal.ws.encoding.policy.EncodingPolicyValidator;
 
 public final class MicroNucleo extends MicroNucleoBase {
     private static MicroNucleo nucleo = new MicroNucleo();
@@ -23,16 +27,28 @@ public final class MicroNucleo extends MicroNucleoBase {
     private LinkedList<DatosProceso> TablaDireccionamientoProcesosRemotos;
     private LinkedList<DatosProceso> TablaDireccionamientoProcesosLocales;
     private Proceso Cliente;
+    private Hashtable<Integer, Buzon> buzones; //de buzones
 
     private MicroNucleo() {
         tablaEmision = new Hashtable<Integer, ParMaquinaProceso>();
         tablaRecepcion = new Hashtable<Integer, byte[]>();
         TablaDireccionamientoProcesosLocales = new LinkedList<DatosProceso>();
         TablaDireccionamientoProcesosRemotos = new LinkedList<DatosProceso>();
+        buzones = new Hashtable<Integer, Buzon>(); //de buzones
     }
 
     public final static MicroNucleo obtenerMicroNucleo() {
         return nucleo;
+    }
+
+    public void registrarEnTablaEmision(ParMaquinaProceso asa){
+        tablaEmision.put(asa.dameID(), asa);
+    }
+    // funcion de buzones, la llama el proceso servicor en su constructor
+    public boolean registraBuzon(int idProceso){
+        imprimeln("-------Registrando buzón del servidor "+idProceso);
+        buzones.put(idProceso, new Buzon(idProceso));
+        return true;
     }
 
     /*
@@ -164,7 +180,21 @@ public final class MicroNucleo extends MicroNucleoBase {
     protected void receiveVerdadero(int addr, byte[] message) {
         imprimeln("Registrando proceso cliente");
         tablaRecepcion.put(Integer.valueOf(addr), message);
-        suspenderProceso();
+        //suspenderProceso();
+        Buzon buzonServidor;
+        if((buzonServidor=buzones.get(addr))==null){
+            tablaRecepcion.put(addr, message);
+            imprimeln("---------------Agregando proceso cliente "+addr+" a la tabla de recepción");
+            suspenderProceso();
+        }else if(buzonServidor.vacio()){
+            tablaRecepcion.put(addr, message);
+            imprimeln("-----------El buzon del servidor esta vacio. Agregando proceso servidor "+addr+"  a la tabla de recepción");
+            System.out.println(buzones.get(addr).hayEspacio());
+            suspenderProceso();
+        } else {
+            System.arraycopy(buzonServidor.retira(), 0, message, 0, 1024);
+            imprimeln("-----------El servidor  "+addr+"  obtuvo un elemento del cliente "+message[0]+" del buzón");
+        }
     }
 
     /**
@@ -356,5 +386,106 @@ public final class MicroNucleo extends MicroNucleoBase {
     {
         Cliente = cliente;
         return true;
+    }
+
+    /**/
+    /**/
+    private void enviaPaqueteAU(MaquinaProcesoClass pmp) {
+        byte[] mensajeAU = new byte[9];
+        mensajeAU[0] = (byte) 0;
+        mensajeAU[4] = (byte)pmp.dameID();
+        mensajeAU[1] = (byte)-1;
+        
+        
+        try {
+            DatagramSocket ds = dameSocketEmision();
+            DatagramPacket dpAU = new DatagramPacket(mensajeAU,mensajeAU.length,InetAddress.getByName(pmp.dameIP()),damePuertoRecepcion());
+            
+            ds.send(dpAU);
+        } 
+        catch(SocketException ex){
+            imprimeln("Error iniciando socket: "+ex.getMessage());
+        }catch(UnknownHostException ex){
+            imprimeln("UnknownHostException: "+ex.getMessage());
+        }catch(IOException ex){
+            imprimeln("IOException: "+ex.getMessage());
+        }
+        
+    }
+    
+    private void enviaPaqueteTA(MaquinaProcesoClass pmp,byte[] mensaje) {
+        byte[] mensajeTA = new byte[1024];
+        System.arraycopy(mensaje, 0, mensajeTA, 0, 1024);
+        
+        
+        mensajeTA[1] = (byte)-2;
+        
+        
+        try {
+            DatagramSocket ds = dameSocketEmision();
+            DatagramPacket dpAU = new DatagramPacket(mensajeTA,mensajeTA.length,InetAddress.getByName(pmp.dameIP()),damePuertoRecepcion());
+            
+            ds.send(dpAU);
+        } 
+        catch(SocketException ex){
+            imprimeln("Error iniciando socket: "+ex.getMessage());
+        }catch(UnknownHostException ex){
+            imprimeln("UnknownHostException: "+ex.getMessage());
+        }catch(IOException ex){
+            imprimeln("IOException: "+ex.getMessage());
+        }
+        
+    }
+    
+    class MaquinaProcesoClass implements ParMaquinaProceso{
+        private int id;
+        private String ip;
+        
+        public MaquinaProcesoClass(int id,String ip) {
+            this.ip=ip;
+            this.id=id;
+        }
+        @Override
+        public String dameIP() {
+            // TODO Auto-generated method stub
+            return ip;
+        }
+        @Override
+        public int dameID() {
+            // TODO Auto-generated method stub
+            return id;
+        }
+        
+    }
+    
+    class ReenviaPaquete extends Thread{
+        
+        String ip;
+        byte[] mensaje;
+        
+        public ReenviaPaquete(String ip,byte[] mensaje){
+            this.mensaje = mensaje;
+            this.ip=ip;
+        }
+        
+        public void run(){
+            Pausador.pausa(5000);
+            mensaje[1]=0;
+            try {
+                DatagramSocket ds = dameSocketEmision();
+                DatagramPacket dpReintenta = new DatagramPacket(mensaje,mensaje.length,InetAddress.getByName(ip),damePuertoRecepcion());
+                System.out.println("Reenviando paquete de proceso " + mensaje[0]);
+                ds.send(dpReintenta);
+            } 
+            catch(SocketException ex){
+                imprimeln("Error iniciando socket: "+ex.getMessage());
+            }catch(UnknownHostException ex){
+                imprimeln("UnknownHostException: "+ex.getMessage());
+            }catch(IOException ex){
+                imprimeln("IOException: "+ex.getMessage());
+            }
+            
+        }
+        
     }
 }

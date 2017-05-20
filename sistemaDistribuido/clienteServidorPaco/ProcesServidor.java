@@ -4,7 +4,7 @@
  * 209537864
  */
 
-package sistemaDistribuido.clientteServidor;
+package sistemaDistribuido.clienteServidorPaco;
 
 import sistemaDistribuido.sistema.clienteServidor.modoMonitor.Nucleo;
 import sistemaDistribuido.sistema.clienteServidor.modoMonitor.DatosProceso;

@@ -6,7 +6,7 @@
 
 package sistemaDistribuido.visual.clienteServidor;
 
-import sistemaDistribuido.clientteServidor.ProcesServidor;
+import sistemaDistribuido.clienteServidorPaco.ProcesServidor;
 import sistemaDistribuido.visual.clienteServidor.MicroNucleoFrame;
 import sistemaDistribuido.visual.clienteServidor.ProcesoFrame;
 

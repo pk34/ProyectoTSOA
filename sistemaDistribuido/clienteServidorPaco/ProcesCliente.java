@@ -1,12 +1,10 @@
 /**
  * Francisco Javier Peguero López
-
-
  * Paco
  * 209537864
  */
 //esto es una prueba de github
-package sistemaDistribuido.clientteServidor;
+package sistemaDistribuido.clienteServidorPaco;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -89,7 +87,6 @@ public class ProcesCliente extends Proceso{
                 imprimeln(LSAmensaje);
                 LSAmensaje = "";
             }
-
             // aqui deberiamos volver hacer verdadero el boton
             botonSolicitud.setEnabled(true);
 

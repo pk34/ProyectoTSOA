@@ -5,7 +5,7 @@
 */
 package sistemaDistribuido.sistema.clienteServidor.modoMonitor;
 
-import sistemaDistribuido.clientteServidor.ProcesCliente;
+import sistemaDistribuido.clienteServidorPaco.ProcesCliente;
 import sistemaDistribuido.sistema.clienteServidor.modoUsuario.Proceso;
 import sistemaDistribuido.util.Convertidor;
 import java.io.IOException;
